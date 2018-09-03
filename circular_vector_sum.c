@@ -5,6 +5,8 @@
 #include <mpi.h>
 // vector size
 const int SIZE = 100;
+const int RIGHT = 1;
+const int LEFT = -1;
 
 int main()
 {
@@ -30,29 +32,25 @@ int main()
 	r = SIZE/comm_sz;
 
 	//Sum subparts of the vector
-	for(int i=1;i<=comm_sz;i++)
-	{	
-		z = 0;
-		for(int j=0;j<r;j++)
-		{
-			z += v[r*(i-1)+1+j];
-		}
-		//first processor receive sum equal z and the other processors send the sum to the first processor 
+	for(int j=0;j<r;j++)
+	{
+		z += v[r*(my_rank)+1+j];
+	}
+	sum = z;
+	for(int i=0;i<comm_sz-1;i++)
+	{
+		MPI_Send(&z, 1, MPI_INT, (my_rank+RIGHT)%comm_sz, 0, MPI_COMM_WORLD);
 		if(my_rank==0)
-			sum = z;
+			MPI_Recv(&z, 1, MPI_INT, comm_sz-1, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
 		else
-			MPI_Send(&z, 1, MPI_INT, 0, 0, MPI_COMM_WORLD);
+			MPI_Recv(&z, 1, MPI_INT, (my_rank+LEFT), 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
+		sum += z;
 	}
 	if(my_rank==0)
 	{
-		for(int i=1;i<comm_sz;i++)
-		{
-			MPI_Recv(&z, 1, MPI_INT, i, 0, MPI_COMM_WORLD, MPI_STATUS_IGNORE);
-			sum += z;
-		}
 		printf("Total: %d\n", sum); //Total recived by my_rank==0
 		printf("Result: %d\n",total);//Total value in v[]
 	}
 	MPI_Finalize();
 	return 0;
-} 
+}
